@@ -9,6 +9,7 @@ module Compliance
   # API Implementation does not hold any state by itself,
   # everything will be stored in local Configuration store
   class API # rubocop:disable Metrics/ClassLength
+
     # return all compliance profiles available for the user
     def self.profiles(config)
       config['server_type'] == 'automate' ? url = "#{config['server']}/#{config['user']}" : url = "#{config['server']}/user/compliance"
@@ -22,16 +23,14 @@ module Compliance
         profiles = JSON.parse(data)
         # iterate over profiles
         if config['server_type'] == 'automate'
-          mapped_profiles = profiles.map do |owner, ps|
-            { org: ps['owner_id'], name: owner }
-          end.flatten
+          mapped_profiles = profiles.values.to_a.flatten
         else
-          mapped_profiles = profiles.map do |owner, ps|
-            ps.keys.map do |name|
-              { org: owner, name: name }
-            end
-          end.flatten
+          mapped_profiles = []
+          profiles.values.each { |org|
+            mapped_profiles += org.values
+          }
         end
+
         return msg, mapped_profiles
       when '401'
         msg = '401 Unauthorized. Please check your token.'
@@ -66,7 +65,7 @@ Please login using `inspec compliance login https://compliance.test --user admin
     def self.exist?(config, profile)
       _msg, profiles = Compliance::API.profiles(config)
       if !profiles.empty?
-        index = profiles.index { |p| "#{p[:org]}/#{p[:name]}" == profile }
+        index = profiles.index { |p| "#{p['owner_id']}/#{p['name']}" == profile }
         !index.nil? && index >= 0
       else
         false
